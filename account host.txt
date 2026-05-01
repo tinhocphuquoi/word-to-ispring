@@ -2,7 +2,7 @@ Please take a note of the details below these are needed to access your account.
 Your account is now active.
 
 Control panel username:	b8_41801577
-Control panel password:	**********
+Control panel password:	Qaz@1234
 Control panel URL:	cpanel.byethost8.com
 MySQL username	b8_41801577
 MySQL password:	**********
