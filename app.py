@@ -5,8 +5,8 @@ import re
 from io import BytesIO
 
 st.set_page_config(page_title="Word → iSpring QuizMaker", layout="wide")
-st.title("📄 Word → iSpring QuizMaker (Bỏ A.B.C.D + Nhận gạch dưới + Chỉnh hàng loạt)")
-st.markdown("**Upload file Word → Chỉnh hàng loạt → Kiểm tra & sửa bảng đẹp → Tải Excel**")
+st.title("📄 Word → iSpring QuizMaker (Đã fix lỗi lưu thay đổi)")
+st.markdown("**Upload file Word → Chỉnh sửa bảng → Tải Excel (thay đổi được lưu)**")
 
 # ====================== HÀM ĐỌC WORD ======================
 def parse_word_file(docx_file):
@@ -38,7 +38,7 @@ def parse_word_file(docx_file):
 
     if current_q and current_options:
         questions.append({"question": current_q, "options": current_options[:]})
-
+    
     data = []
     for q in questions:
         row = {
@@ -62,7 +62,14 @@ uploaded_file = st.file_uploader("📤 Chọn file Word (.docx)", type=["docx"])
 
 if uploaded_file:
     st.success(f"✅ Đã tải: {uploaded_file.name}")
-    df = parse_word_file(uploaded_file)
+    
+    # Đọc file Word
+    original_df = parse_word_file(uploaded_file)
+
+    # Khởi tạo session_state để giữ thay đổi
+    if "edited_df" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_file.name:
+        st.session_state.edited_df = original_df.copy()
+        st.session_state.last_uploaded = uploaded_file.name
 
     # ==================== CHỈNH HÀNG LOẠT ====================
     st.subheader("⚙️ Cài đặt chung cho tất cả câu hỏi")
@@ -75,55 +82,56 @@ if uploaded_file:
         new_incorrect = st.text_input("Incorrect Feedback", value="Rất tiếc, đáp án chưa chính xác.")
 
     if st.button("🚀 Áp dụng cho TẤT CẢ câu hỏi", type="primary", use_container_width=True):
-        df["Points"] = new_points
-        df["Correct Feedback"] = new_correct
-        df["Incorrect Feedback"] = new_incorrect
+        st.session_state.edited_df["Points"] = new_points
+        st.session_state.edited_df["Correct Feedback"] = new_correct
+        st.session_state.edited_df["Incorrect Feedback"] = new_incorrect
         st.success("✅ Đã áp dụng thay đổi hàng loạt!")
 
-    # ==================== BẢNG CHỈNH SỬA ĐẸP ====================
+    # ==================== BẢNG CHỈNH SỬA (ĐÃ FIX) ====================
     st.subheader("📋 Bảng câu hỏi (click vào ô để sửa)")
 
     # Thêm cột STT
-    df.insert(0, "STT", range(1, len(df) + 1))
+    display_df = st.session_state.edited_df.copy()
+    display_df.insert(0, "STT", range(1, len(display_df) + 1))
 
     edited_df = st.data_editor(
-        df,
+        display_df,
         use_container_width=True,
         hide_index=True,
-        height=700,                    # Tăng chiều cao bảng
+        height=700,
         num_rows="dynamic",
+        key="quiz_editor",                     # ← Quan trọng: fix lỗi lưu thay đổi
         column_config={
             "STT": st.column_config.NumberColumn("STT", width="small", disabled=True),
-            "Question Type": st.column_config.TextColumn("Loại câu hỏi", width="small", disabled=True),
-            "Question Text": st.column_config.TextColumn("Câu hỏi đầy đủ", width="large", help="Nội dung câu hỏi chính"),
-            "Answer 1": st.column_config.TextColumn("Đáp án 1", width="medium", help="Nhớ thêm * nếu là đáp án đúng"),
+            "Question Type": st.column_config.TextColumn("Loại", width="small", disabled=True),
+            "Question Text": st.column_config.TextColumn("Câu hỏi", width="large"),
+            "Answer 1": st.column_config.TextColumn("Đáp án 1", width="medium"),
             "Answer 2": st.column_config.TextColumn("Đáp án 2", width="medium"),
             "Answer 3": st.column_config.TextColumn("Đáp án 3", width="medium"),
             "Answer 4": st.column_config.TextColumn("Đáp án 4", width="medium"),
-            "Points": st.column_config.NumberColumn("Điểm", width="small", min_value=0, step=1),
+            "Points": st.column_config.NumberColumn("Điểm", width="small"),
             "Correct Feedback": st.column_config.TextColumn("Phản hồi đúng", width="medium"),
             "Incorrect Feedback": st.column_config.TextColumn("Phản hồi sai", width="medium"),
-            # Ẩn các cột ít dùng
-            "Image": None, "Video": None, "Audio": None,
-            "Answer 5": None, "Answer 6": None, "Answer 7": None,
-            "Answer 8": None, "Answer 9": None, "Answer 10": None,
         },
         column_order=[
-            "STT", "Question Type", "Question Text",
-            "Answer 1", "Answer 2", "Answer 3", "Answer 4",
+            "STT", "Question Type", "Question Text", "Answer 1", "Answer 2", "Answer 3", "Answer 4",
             "Points", "Correct Feedback", "Incorrect Feedback"
         ]
     )
 
-    # Nút khôi phục bảng gốc
-    if st.button("🔄 Khôi phục bảng về trạng thái ban đầu", use_container_width=True):
+    # Cập nhật lại session_state sau khi chỉnh sửa
+    st.session_state.edited_df = edited_df.drop(columns=["STT"], errors="ignore")
+
+    # Nút khôi phục
+    if st.button("🔄 Khôi phục bảng gốc", use_container_width=True):
+        st.session_state.edited_df = original_df.copy()
         st.rerun()
 
-    # Nút tải Excel
+    # ==================== TẢI EXCEL ====================
     if st.button("💾 Tải file Excel cho iSpring", type="primary", use_container_width=True):
         output = BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
-            edited_df.drop(columns=["STT"], errors="ignore").to_excel(writer, index=False, sheet_name="Sample")
+            st.session_state.edited_df.to_excel(writer, index=False, sheet_name="Sample")
         output.seek(0)
 
         st.download_button(
@@ -133,6 +141,6 @@ if uploaded_file:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
-        st.success("✅ File Excel đã sẵn sàng import vào iSpring QuizMaker!")
+        st.success("✅ File Excel đã được tạo với **tất cả thay đổi của bạn**!")
 
-st.caption("Ứng dụng Streamlit • Giao diện bảng đã được tối ưu")
+st.caption("Ứng dụng Streamlit • Đã fix lỗi lưu thay đổi trên bảng")
