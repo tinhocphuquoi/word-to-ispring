@@ -1,0 +1,18 @@
+Please take a note of the details below these are needed to access your account.
+Your account is now active.
+
+Control panel username:	b8_41801577
+Control panel password:	**********
+Control panel URL:	cpanel.byethost8.com
+MySQL username	b8_41801577
+MySQL password:	**********
+MySQL hostname:	sql111.byethost8.com
+FTP username:	b8_41801577
+FTP password:	**********
+FTP host name:	ftp.byethost8.com
+Your Website URL:	http://tinhoc.byethost8.com
+ 	 
+
+Thank you for choosing us to host your websites!
+
+byethost8.com hosting services 2026s
